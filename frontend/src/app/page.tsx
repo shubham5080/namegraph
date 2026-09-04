@@ -185,7 +185,7 @@ export default function HomePage() {
     <div className="app-shell">
       <aside className="sidebar">
         <a className="brand" href="/">
-          <span className="brand-mark">NG</span>
+          <img className="brand-mark" src="/logo.svg" alt="NameGraph" />
           <span>
             <strong>NameGraph</strong>
             <span>Onchain research agent</span>
@@ -194,7 +194,7 @@ export default function HomePage() {
 
         <div className="side-card">
           <div className="agent-row">
-            <div className="agent-avatar">NG</div>
+            <img className="agent-avatar" src="/logo.png" alt="" />
             <div>
               <h2>{identity?.display_name || AGENT_ENS}</h2>
               <p>
@@ -293,7 +293,11 @@ export default function HomePage() {
             {messages.map((m) => (
               <article key={m.id} className={`msg ${m.role}`}>
                 <div className="msg-av" aria-hidden>
-                  {m.role === "user" ? "YOU" : "NG"}
+                  {m.role === "user" ? (
+                    "YOU"
+                  ) : (
+                    <img src="/logo.svg" alt="" />
+                  )}
                 </div>
                 <div className="bubble">
                   <p className="bubble-meta">
@@ -345,7 +349,7 @@ export default function HomePage() {
             {loading && (
               <article className="msg agent">
                 <div className="msg-av" aria-hidden>
-                  NG
+                  <img src="/logo.svg" alt="" />
                 </div>
                 <div className="bubble">
                   <p className="bubble-meta">{AGENT_ENS}</p>

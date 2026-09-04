@@ -56,11 +56,8 @@ a { color: inherit; }
   width: 34px;
   height: 34px;
   border-radius: 10px;
-  display: grid;
-  place-items: center;
-  background: linear-gradient(145deg, var(--purple), #4c66ff);
-  font-size: 0.72rem;
-  font-weight: 600;
+  display: block;
+  object-fit: cover;
   box-shadow: 0 8px 24px rgba(111, 76, 255, 0.35);
 }
 .brand strong {
@@ -101,12 +98,10 @@ a { color: inherit; }
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background: linear-gradient(145deg, var(--purple), #4c66ff);
-  font-size: 0.7rem;
-  font-weight: 600;
+  display: block;
+  object-fit: cover;
   flex-shrink: 0;
+  box-shadow: 0 0 0 1px rgba(111, 76, 255, 0.35);
 }
 .status-dot {
   display: inline-flex;
@@ -320,6 +315,14 @@ a { color: inherit; }
   font-weight: 600;
   background: #2a2448;
   color: #d7d0ff;
+  object-fit: cover;
+  overflow: hidden;
+}
+.msg-av img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 .msg.user .msg-av {
   background: var(--purple);

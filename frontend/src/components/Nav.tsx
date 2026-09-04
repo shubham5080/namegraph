@@ -5,7 +5,7 @@ export default function Nav() {
     <header className="site-nav">
       <div className="site-nav-inner">
         <Link href="/" className="brand">
-          <span className="brand-mark">NG</span>
+          <img className="brand-mark" src="/logo.svg" alt="NameGraph" />
           <span className="brand-name">NameGraph</span>
         </Link>
 
