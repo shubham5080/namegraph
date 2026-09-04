@@ -267,7 +267,7 @@ export default function HomePage() {
                   {m.subgraph ? ` · ${m.subgraph}` : ""}
                 </p>
                 <p className="bubble-text">{m.text}</p>
-                {m.receipt && (
+                {m.receipt && m.receipt.credits > 0 && (
                   <>
                     <button
                       type="button"

@@ -135,24 +135,37 @@ async def ask(
     body: AskRequest,
     x_session_id: str | None = Header(default=None),
 ) -> AskResponse:
-    """Charge credit → route across subgraphs → answer + receipt."""
+    """Route question → optional credit charge → Graph answer + receipt."""
     session = _session_id(x_session_id)
-    try:
-        credit_store.charge(session, amount=1)
-    except ValueError:
-        raise HTTPException(
-            status_code=402,
-            detail="Insufficient credits. Top up to keep querying.",
-        )
-
     routed = route_question(body.question)
-    graph = await run_graph_query(
-        body.graphql or routed.query,
-        subgraph_id=routed.subgraph_id,
-        source_label="thegraph",
-    )
-    source = graph.get("source", "unknown")
-    data = graph.get("data") or {}
+
+    if routed.charge:
+        try:
+            credit_store.charge(session, amount=1)
+        except ValueError:
+            raise HTTPException(
+                status_code=402,
+                detail="Insufficient credits. Top up to keep querying.",
+            )
+
+    if routed.needs_graph:
+        graph = await run_graph_query(
+            body.graphql or routed.query,
+            subgraph_id=routed.subgraph_id,
+            source_label="thegraph",
+        )
+        source = graph.get("source", "unknown")
+        data = graph.get("data") or {}
+    else:
+        graph = {
+            "source": "agent",
+            "subgraph_id": None,
+            "query": None,
+            "data": {},
+        }
+        source = "agent"
+        data = {}
+
     graph["intent"] = routed.intent.value
     graph["subgraph"] = routed.subgraph_name
     answer = format_answer(
@@ -167,14 +180,18 @@ async def ask(
         wallet=body.wallet,
         intent=routed.intent.value,
         subgraph=routed.subgraph_name,
-        subgraph_id=routed.subgraph_id,
+        subgraph_id=routed.subgraph_id or "none",
     )
+    # Help replies are free — show 0 on the receipt
+    if not routed.charge:
+        receipt.credits = 0
+
     return AskResponse(
         agent=settings.agent_ens_name,
         question=body.question,
         answer=answer,
         graph=graph,
-        credits_charged=1,
+        credits_charged=1 if routed.charge else 0,
         credits_remaining=credit_store.balance(session),
         receipt=receipt,
     )

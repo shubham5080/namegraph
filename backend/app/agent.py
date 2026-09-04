@@ -18,6 +18,7 @@ class Intent(str, Enum):
     ENS_DOMAIN = "ens_domain"
     ENS_AGENT = "ens_agent"
     SNAPSHOT = "snapshot"
+    HELP = "help"
 
 
 @dataclass
@@ -27,6 +28,8 @@ class RoutedQuery:
     subgraph_id: str
     subgraph_name: str
     extracted: dict | None = None
+    needs_graph: bool = True
+    charge: bool = True
 
 
 UNISWAP_QUERIES: dict[Intent, str] = {
@@ -122,7 +125,28 @@ def route_question(question: str) -> RoutedQuery:
     uniswap = settings.graph_subgraph_id
     ens = settings.ens_subgraph_id
 
-    if any(p in q for p in ("who is namegraph", "about namegraph", "agent identity", "your ens")):
+    # Greetings / help — no Graph call, no credit charge
+    if (
+        q in {"hi", "hello", "hey", "yo", "sup", "thanks", "thank you", "help", "?"}
+        or any(
+            q.startswith(p)
+            for p in ("hi ", "hello ", "hey ", "what can you", "how do i", "help ")
+        )
+        or q in {"what can you do", "what do you do", "who are you"}
+    ):
+        return RoutedQuery(
+            Intent.HELP,
+            "",
+            "",
+            "NameGraph",
+            needs_graph=False,
+            charge=False,
+        )
+
+    if any(
+        p in q
+        for p in ("who is namegraph", "about namegraph", "agent identity", "your ens")
+    ):
         return RoutedQuery(
             Intent.ENS_AGENT,
             _ens_domain_query(settings.agent_ens_name),
@@ -132,7 +156,10 @@ def route_question(question: str) -> RoutedQuery:
         )
 
     ens_match = re.search(r"\b([a-z0-9-]{1,63}\.eth)\b", q)
-    if ens_match or any(p in q for p in ("ens subgraph", "look up", "resolve ", "who owns", "who is")):
+    if ens_match or (
+        any(p in q for p in ("look up", "resolve ", "who owns", "ens subgraph"))
+        and (ens_match or ".eth" in q)
+    ):
         name = ens_match.group(1) if ens_match else settings.agent_ens_name
         return RoutedQuery(
             Intent.ENS_DOMAIN,
@@ -146,21 +173,44 @@ def route_question(question: str) -> RoutedQuery:
         "swap" in q
         and any(p in q for p in ("latest", "recent", "last", "show", "live"))
     ) or any(p in q for p in ("latest swaps", "recent swaps", "last swap")):
-        return RoutedQuery(Intent.RECENT_SWAPS, UNISWAP_QUERIES[Intent.RECENT_SWAPS], uniswap, "Uniswap V3")
+        return RoutedQuery(
+            Intent.RECENT_SWAPS, UNISWAP_QUERIES[Intent.RECENT_SWAPS], uniswap, "Uniswap V3"
+        )
 
     if any(p in q for p in ("top pool", "top pools", "highest tvl", "largest pool", "by tvl")):
-        return RoutedQuery(Intent.TOP_POOLS, UNISWAP_QUERIES[Intent.TOP_POOLS], uniswap, "Uniswap V3")
+        return RoutedQuery(
+            Intent.TOP_POOLS, UNISWAP_QUERIES[Intent.TOP_POOLS], uniswap, "Uniswap V3"
+        )
 
     if any(p in q for p in ("volume", "trading volume", "total volume")):
         return RoutedQuery(Intent.VOLUME, UNISWAP_QUERIES[Intent.VOLUME], uniswap, "Uniswap V3")
 
     if any(p in q for p in ("transaction", "transactions", "tx count", "txs")):
-        return RoutedQuery(Intent.TX_COUNT, UNISWAP_QUERIES[Intent.TX_COUNT], uniswap, "Uniswap V3")
+        return RoutedQuery(
+            Intent.TX_COUNT, UNISWAP_QUERIES[Intent.TX_COUNT], uniswap, "Uniswap V3"
+        )
 
-    if any(p in q for p in ("pool", "pools", "how many")):
-        return RoutedQuery(Intent.POOL_COUNT, UNISWAP_QUERIES[Intent.POOL_COUNT], uniswap, "Uniswap V3")
+    if any(p in q for p in ("pool", "pools")) and any(
+        p in q for p in ("how many", "count", "number", "uniswap")
+    ):
+        return RoutedQuery(
+            Intent.POOL_COUNT, UNISWAP_QUERIES[Intent.POOL_COUNT], uniswap, "Uniswap V3"
+        )
 
-    return RoutedQuery(Intent.SNAPSHOT, UNISWAP_QUERIES[Intent.SNAPSHOT], uniswap, "Uniswap V3")
+    if any(p in q for p in ("snapshot", "overview", "summary")) and "uniswap" in q:
+        return RoutedQuery(
+            Intent.SNAPSHOT, UNISWAP_QUERIES[Intent.SNAPSHOT], uniswap, "Uniswap V3"
+        )
+
+    # Unclear question — guide the user instead of dumping random Graph data
+    return RoutedQuery(
+        Intent.HELP,
+        "",
+        "",
+        "NameGraph",
+        needs_graph=False,
+        charge=False,
+    )
 
 
 def _fmt_usd(value: str | float | None) -> str:
@@ -207,6 +257,17 @@ def format_answer(
     prefix = f"I'm {agent_name}."
     if stub:
         prefix += " (stub mode — add GRAPH_API_KEY for live data.)"
+
+    if intent == Intent.HELP:
+        return (
+            f"{prefix} I answer onchain questions with The Graph.\n"
+            "Try:\n"
+            "• How many Uniswap V3 pools exist?\n"
+            "• Show latest Uniswap V3 swaps\n"
+            "• Look up vitalik.eth\n"
+            "• Who is namegraph.eth?\n"
+            "Each Graph query costs 1 credit and returns a receipt."
+        )
 
     if intent in (Intent.ENS_DOMAIN, Intent.ENS_AGENT):
         domains = data.get("domains") or []
