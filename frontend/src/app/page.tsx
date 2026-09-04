@@ -188,11 +188,26 @@ export default function HomePage() {
 
       <div className="card agent-card" id="agent">
         <div className="agent-row">
-          {identity?.avatar ? (
-            <img className="avatar" src={identity.avatar} alt={AGENT_ENS} />
-          ) : (
-            <div className="avatar placeholder">NG</div>
-          )}
+          <div className="avatar-tile">
+            {identity?.avatar ? (
+              <img
+                className="avatar"
+                src={identity.avatar}
+                alt={AGENT_ENS}
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                  const fallback = e.currentTarget.nextElementSibling;
+                  if (fallback instanceof HTMLElement) fallback.hidden = false;
+                }}
+              />
+            ) : null}
+            <div
+              className="avatar placeholder"
+              hidden={Boolean(identity?.avatar)}
+            >
+              NG
+            </div>
+          </div>
           <div>
             <p className="agent-name">{identity?.display_name || AGENT_ENS}</p>
             <p className="meta">
@@ -232,13 +247,20 @@ export default function HomePage() {
             </button>
           ))}
         </div>
-        <form onSubmit={onAsk}>
+        <form onSubmit={onAsk} className="ask-form">
           <label htmlFor="q">Ask NameGraph</label>
-          <textarea
-            id="q"
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-          />
+          <div className="ask-composer">
+            <span className="ask-icon" aria-hidden>
+              ⌕
+            </span>
+            <textarea
+              id="q"
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              placeholder="Search by question — e.g. How many Uniswap V3 pools?"
+              rows={3}
+            />
+          </div>
           <button
             type="submit"
             disabled={loading || !question.trim() || !online || credits === 0}

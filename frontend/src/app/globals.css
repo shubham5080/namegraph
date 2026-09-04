@@ -252,20 +252,37 @@ h1 {
   gap: 1rem;
   align-items: center;
 }
+.avatar-tile {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+}
 .avatar {
-  width: 58px;
-  height: 58px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 2px solid rgba(111, 76, 255, 0.45);
+  width: 64px;
+  height: 64px;
+  border-radius: 14px;
+  object-fit: contain;
+  object-position: center;
+  background: rgba(12, 10, 29, 0.9);
+  border: 1px solid rgba(111, 76, 255, 0.4);
+  padding: 6px;
+  display: block;
 }
 .avatar.placeholder {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--graph-purple);
+  background: linear-gradient(145deg, #6f4cff, #4c66ff);
   color: #fff;
   font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  box-shadow: 0 8px 24px rgba(111, 76, 255, 0.35);
+  padding: 0;
+}
+.avatar.placeholder[hidden] {
+  display: none;
 }
 .agent-name {
   margin: 0;
@@ -295,24 +312,54 @@ label {
   display: block;
   font-size: 0.82rem;
   color: var(--muted);
-  margin-bottom: 0.45rem;
+  margin-bottom: 0.55rem;
   font-weight: 500;
+}
+.ask-form {
+  margin-top: 0.25rem;
+}
+.ask-composer {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  width: 100%;
+  min-height: 112px;
+  padding: 0.85rem 1rem;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.ask-composer:focus-within {
+  border-color: rgba(111, 76, 255, 0.55);
+  background: rgba(111, 76, 255, 0.08);
+  box-shadow: 0 0 0 3px rgba(111, 76, 255, 0.18);
+}
+.ask-icon {
+  margin-top: 0.15rem;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 1.15rem;
+  line-height: 1;
+  user-select: none;
 }
 textarea {
   width: 100%;
-  min-height: 96px;
-  resize: vertical;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: rgba(12, 10, 29, 0.65);
-  color: var(--text);
-  padding: 0.85rem;
+  min-height: 84px;
+  resize: none;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.92);
+  padding: 0;
   font: inherit;
+  font-size: 0.98rem;
+  line-height: 1.5;
+}
+textarea::placeholder {
+  color: rgba(255, 255, 255, 0.38);
 }
 textarea:focus {
-  outline: 2px solid rgba(111, 76, 255, 0.45);
-  outline-offset: 1px;
-  border-color: rgba(111, 76, 255, 0.55);
+  outline: none;
 }
 button {
   margin-top: 0.85rem;
