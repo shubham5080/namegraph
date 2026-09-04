@@ -12,32 +12,24 @@ const SUGGESTIONS = [
 ];
 
 type AgentIdentity = {
-  ens: string;
   display_name: string;
   resolved: boolean;
   address: string | null;
-  avatar: string | null;
-  tagline: string;
 };
 
 type Receipt = {
   id: string;
   paid_by: string;
-  agent: string;
   intent: string;
   subgraph: string;
   subgraph_id: string;
   credits: number;
-  ts: number;
   proof: string;
 };
 
 type AskResponse = {
-  agent: string;
-  question: string;
   answer: string;
   graph: Record<string, unknown>;
-  credits_charged: number;
   credits_remaining: number;
   receipt: Receipt;
 };
@@ -46,7 +38,6 @@ type ChatMessage = {
   id: string;
   role: "user" | "agent";
   text: string;
-  at: string;
   receipt?: Receipt;
   subgraph?: string;
 };
@@ -149,7 +140,6 @@ export default function HomePage() {
       id: crypto.randomUUID(),
       role: "user",
       text: trimmed,
-      at: new Date().toISOString(),
     };
     persist([...messages, userMsg]);
 
@@ -159,9 +149,7 @@ export default function HomePage() {
         headers: apiHeaders(),
         body: JSON.stringify({ question: trimmed }),
       });
-      if (res.status === 402) {
-        throw new Error("Insufficient credits. Top up to continue.");
-      }
+      if (res.status === 402) throw new Error("Insufficient credits.");
       if (!res.ok) throw new Error(`Request failed (${res.status})`);
       const data = (await res.json()) as AskResponse;
       setCredits(data.credits_remaining);
@@ -169,12 +157,10 @@ export default function HomePage() {
         id: crypto.randomUUID(),
         role: "agent",
         text: data.answer,
-        at: new Date().toISOString(),
         receipt: data.receipt,
         subgraph: String(data.graph.subgraph ?? data.receipt.subgraph),
       };
       persist([...messages, userMsg, agentMsg]);
-      setOpenReceipt(data.receipt.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Request failed");
     } finally {
@@ -198,63 +184,68 @@ export default function HomePage() {
   return (
     <main>
       <section className="hero">
-        <h1>Onchain answers, by name</h1>
-        <p className="tag">
-          Ask <strong>{AGENT_ENS}</strong>. It routes to The Graph, settles a
-          credit, and returns a verifiable receipt.
+        <p className="hero-kicker">ENS-named agents for live Graph data</p>
+        <h1>Fast, easy access to onchain answers</h1>
+        <p className="hero-sub">
+          Ask {AGENT_ENS}. Get indexed truth from The Graph — with a receipt.
         </p>
-      </section>
-
-      <section className="card agent-card" id="agent" aria-label="Agent">
-        <div className="agent-row">
-          <div className="avatar placeholder" aria-hidden>
-            NG
-          </div>
-          <div>
-            <p className="agent-name">{identity?.display_name || AGENT_ENS}</p>
-            <p className="meta">
-              {identity?.resolved
-                ? `Resolved · ${shortAddr}`
-                : "Resolving ENS…"}
-            </p>
-          </div>
-          <div className="credits-box">
-            <p className="credits-label">Balance</p>
-            <p className="credits-value">{credits ?? "—"}</p>
-            <button type="button" className="ghost small" onClick={onTopUp}>
-              Add credits
-            </button>
-          </div>
+        <div className="hero-actions">
+          <a className="btn-primary" href="#query">
+            Start querying
+          </a>
+          <a className="btn-secondary" href="#agent">
+            Meet the agent
+          </a>
         </div>
       </section>
 
-      <section className="card chat-card" id="query" aria-label="Query">
-        <div className="chat-header">
-          <div>
-            <p className="agent-name">Conversation</p>
-            <p className="meta">
-              {online ? "Connected" : "Service unavailable"}
-              {credits != null ? ` · ${credits} credits` : ""}
-            </p>
+      <div className="agent-bar" id="agent">
+        <div className="avatar" aria-hidden>
+          NG
+        </div>
+        <div className="agent-bar-copy">
+          <strong>{identity?.display_name || AGENT_ENS}</strong>
+          <span>
+            {identity?.resolved ? `Resolved · ${shortAddr}` : "Resolving ENS…"}
+          </span>
+        </div>
+        <div className="agent-bar-credits">
+          <em>Balance</em>
+          <strong>{credits ?? "—"}</strong>
+          <button type="button" className="link-btn" onClick={onTopUp}>
+            Add credits
+          </button>
+        </div>
+      </div>
+
+      <section className="query-shell" id="query">
+        <div className="query-top">
+          <h2>Conversation</h2>
+          <div className="meta">
+            {online ? "Connected" : "Offline"}
+            {credits != null ? ` · ${credits} credits` : ""}
+            {messages.length > 0 && (
+              <>
+                {" · "}
+                <button
+                  type="button"
+                  className="link-btn"
+                  onClick={() => {
+                    persist([]);
+                    setOpenReceipt(null);
+                  }}
+                >
+                  New chat
+                </button>
+              </>
+            )}
           </div>
-          {messages.length > 0 && (
-            <button
-              type="button"
-              className="ghost small"
-              onClick={() => {
-                persist([]);
-                setOpenReceipt(null);
-              }}
-            >
-              New chat
-            </button>
-          )}
         </div>
 
         <div className="chat-thread" aria-live="polite">
           {messages.length === 0 && (
             <div className="chat-empty">
-              <p>Ask about Uniswap markets or any ENS name.</p>
+              Ask about markets or any ENS name.
               <div className="suggestions">
                 {SUGGESTIONS.map((s) => (
                   <button
@@ -272,71 +263,61 @@ export default function HomePage() {
           )}
 
           {messages.map((m) => (
-            <article key={m.id} className={`bubble ${m.role}`}>
-              <header className="bubble-meta">
+            <article key={m.id} className={`msg ${m.role}`}>
+              <p className="msg-label">
                 {m.role === "user" ? "You" : AGENT_ENS}
                 {m.subgraph ? ` · ${m.subgraph}` : ""}
-              </header>
-              <p className="bubble-text">{m.text}</p>
+              </p>
+              <p className="msg-body">{m.text}</p>
               {m.receipt && (
-                <div className="receipt-wrap">
+                <>
                   <button
                     type="button"
-                    className="ghost small"
+                    className="receipt-toggle"
                     onClick={() =>
                       setOpenReceipt((id) =>
                         id === m.receipt!.id ? null : m.receipt!.id,
                       )
                     }
                   >
-                    {openReceipt === m.receipt.id ? "Hide receipt" : "Receipt"}
+                    {openReceipt === m.receipt.id
+                      ? "Hide receipt"
+                      : "View receipt"}
                   </button>
                   {openReceipt === m.receipt.id && (
-                    <dl className="receipt">
-                      <div>
-                        <dt>Proof</dt>
-                        <dd>{m.receipt.proof}</dd>
-                      </div>
-                      <div>
-                        <dt>Paid by</dt>
-                        <dd>{m.receipt.paid_by}</dd>
-                      </div>
-                      <div>
-                        <dt>Subgraph</dt>
-                        <dd>
-                          {m.receipt.subgraph} ·{" "}
-                          {m.receipt.subgraph_id.slice(0, 10)}…
-                        </dd>
-                      </div>
-                      <div>
-                        <dt>Intent</dt>
-                        <dd>{m.receipt.intent}</dd>
-                      </div>
-                      <div>
-                        <dt>Credits</dt>
-                        <dd>{m.receipt.credits}</dd>
-                      </div>
-                    </dl>
+                    <div className="receipt-row">
+                      <span>
+                        Proof <strong>{m.receipt.proof}</strong>
+                      </span>
+                      <span>
+                        Subgraph <strong>{m.receipt.subgraph}</strong>
+                      </span>
+                      <span>
+                        Intent <strong>{m.receipt.intent}</strong>
+                      </span>
+                      <span>
+                        Credits <strong>{m.receipt.credits}</strong>
+                      </span>
+                    </div>
                   )}
-                </div>
+                </>
               )}
             </article>
           ))}
 
           {loading && (
-            <article className="bubble agent">
-              <header className="bubble-meta">{AGENT_ENS}</header>
-              <p className="bubble-text typing">Querying The Graph…</p>
+            <article className="msg agent">
+              <p className="msg-label">{AGENT_ENS}</p>
+              <p className="msg-body typing">Querying The Graph…</p>
             </article>
           )}
           <div ref={bottomRef} />
         </div>
 
         <form onSubmit={onAsk} className="ask-form">
-          <div className={`ask-composer ${!online ? "disabled" : ""}`}>
+          <div className="ask-composer">
             <textarea
               ref={inputRef}
-              id="q"
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               placeholder={`Message ${AGENT_ENS}`}
@@ -353,9 +334,7 @@ export default function HomePage() {
               {loading ? "…" : "Send"}
             </button>
           </div>
-          <p className="composer-hint">
-            Enter to send · Shift+Enter for newline · 1 credit / query
-          </p>
+          <p className="composer-hint">Enter to send · 1 credit / query</p>
         </form>
 
         {error && <p className="chat-error">{error}</p>}
