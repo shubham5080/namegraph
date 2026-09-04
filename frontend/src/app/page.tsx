@@ -172,16 +172,19 @@ export default function HomePage() {
 
   return (
     <main>
-      <div className="status-row">
-        <span className={`status-dot ${online ? "online" : "offline"}`}>
-          {online ? "Backend online" : "Backend offline"}
-        </span>
-      </div>
-
-      <h1>NameGraph</h1>
-      <p className="tag">
-        Agent <strong>{AGENT_ENS}</strong> — ask onchain questions, pay per query.
-      </p>
+      <section className="hero">
+        <p className="hero-eyebrow">Built with The Graph · ENS · Privy</p>
+        <div className="status-row">
+          <span className={`status-dot ${online ? "online" : "offline"}`}>
+            {online ? "Backend online" : "Backend offline"}
+          </span>
+        </div>
+        <h1>Fast, easy access to onchain answers</h1>
+        <p className="tag">
+          Agent <strong>{AGENT_ENS}</strong> pays to query The Graph — then
+          answers in plain language.
+        </p>
+      </section>
 
       <div className="card agent-card" id="agent">
         <div className="agent-row">

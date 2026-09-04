@@ -31,7 +31,7 @@ export default function Nav() {
             target="_blank"
             rel="noreferrer"
           >
-            GitHub
+            Start building
           </a>
         </div>
       </div>

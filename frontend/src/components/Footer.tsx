@@ -13,7 +13,8 @@ export default function Footer() {
         <div className="footer-brand">
           <p className="footer-title">NameGraph</p>
           <p className="footer-tagline">
-            ENS-named agents that pay to query The Graph for live onchain answers.
+            ENS-named agents that pay to query The Graph for live onchain
+            answers.
           </p>
         </div>
 
@@ -34,13 +35,26 @@ export default function Footer() {
         </div>
 
         <div className="footer-col">
-          <p className="footer-label">Project</p>
-          <a href={GITHUB_URL} target="_blank" rel="noreferrer">GitHub</a>
-          <a href={`${GITHUB_URL}/blob/main/PLAN.md`} target="_blank" rel="noreferrer">
+          <p className="footer-label">Resources</p>
+          <a href={GITHUB_URL} target="_blank" rel="noreferrer">
+            GitHub
+          </a>
+          <a
+            href={`${GITHUB_URL}/blob/main/PLAN.md`}
+            target="_blank"
+            rel="noreferrer"
+          >
             Build plan
           </a>
-          <a href={`${GITHUB_URL}/blob/main/AI_USAGE.md`} target="_blank" rel="noreferrer">
+          <a
+            href={`${GITHUB_URL}/blob/main/AI_USAGE.md`}
+            target="_blank"
+            rel="noreferrer"
+          >
             AI disclosure
+          </a>
+          <a href="https://thegraph.com/docs/" target="_blank" rel="noreferrer">
+            The Graph Docs
           </a>
         </div>
       </div>
