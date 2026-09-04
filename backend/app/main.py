@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
+from .agent import DEMO_QUESTIONS, format_answer, route_question
 from .config import settings
 from .graph_client import run_graph_query
 
@@ -44,26 +45,24 @@ def agent_info() -> dict:
         "ens": settings.agent_ens_name,
         "partners": ["The Graph", "ENS", "Privy"],
         "tagline": "ENS-named agents that pay to query The Graph",
+        "demo_questions": DEMO_QUESTIONS,
     }
 
 
 @app.post("/ask", response_model=AskResponse)
 async def ask(body: AskRequest) -> AskResponse:
-    """MVP agent: run a Graph query and narrate the result."""
-    graph = await run_graph_query(body.graphql)
+    """MVP agent: route question → Graph query → plain-language answer."""
+    intent, query = route_question(body.question)
+    graph = await run_graph_query(body.graphql or query)
     source = graph.get("source", "unknown")
-    if source == "stub":
-        answer = (
-            f"I'm {settings.agent_ens_name}. Graph is in stub mode — "
-            "add GRAPH_API_KEY and GRAPH_SUBGRAPH_ID for live data. "
-            f"You asked: {body.question}"
-        )
-    else:
-        data = graph.get("data") or {}
-        answer = (
-            f"I'm {settings.agent_ens_name}. Live The Graph response for "
-            f"“{body.question}”: {data}"
-        )
+    data = graph.get("data") or {}
+    graph["intent"] = intent.value
+    answer = format_answer(
+        intent,
+        data,
+        settings.agent_ens_name,
+        stub=source == "stub",
+    )
     return AskResponse(
         agent=settings.agent_ens_name,
         question=body.question,
