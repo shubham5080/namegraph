@@ -55,6 +55,17 @@ npm run dev
 
 Open http://localhost:3000
 
+### One command (both servers)
+
+```bash
+./scripts/dev.sh
+```
+
+## Demo credits
+
+Each ask costs **1 credit**. New browser sessions start with **10 credits**.
+Use **Top up (+5)** in the UI until Privy payments are wired in.
+
 ## Demo script (≤4 min)
 
 1. Show agent ENS name

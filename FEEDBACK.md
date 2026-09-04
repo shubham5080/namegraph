@@ -8,7 +8,8 @@ Notes for The Graph / ENS / Privy developer experience during ETHOnline 2026.
 
 ## ENS
 
-- (fill while integrating)
+- `api.ensideas.com` resolves `namegraph.eth` cleanly for demo avatar + address
+- Text records (`description`, `url`) not returned by that API yet — may add direct resolver calls later
 
 ## Privy
 
