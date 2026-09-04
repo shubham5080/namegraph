@@ -182,70 +182,64 @@ export default function HomePage() {
     !loading && online && question.trim().length > 0 && credits !== 0;
 
   return (
-    <main>
-      <section className="hero">
-        <p className="hero-kicker">ENS-named agents for live Graph data</p>
-        <h1>Fast, easy access to onchain answers</h1>
-        <p className="hero-sub">
-          Ask {AGENT_ENS}. Get indexed truth from The Graph — with a receipt.
-        </p>
-        <div className="hero-actions">
-          <a className="btn-primary" href="#query">
-            Start querying
-          </a>
-          <a className="btn-secondary" href="#agent">
-            Meet the agent
-          </a>
+    <main className="app">
+      <header className="intro">
+        <div>
+          <h1>Ask onchain data by name</h1>
+          <p>
+            Talk to <strong>{AGENT_ENS}</strong> — it routes to The Graph and
+            returns a receipt for every query.
+          </p>
         </div>
-      </section>
+        <div className="intro-stats">
+          <div className="stat-pill">
+            {online ? "Live" : "Offline"}
+          </div>
+          <div className="stat-pill">
+            Balance <strong>{credits ?? "—"}</strong>
+            <button type="button" onClick={onTopUp}>
+              Add
+            </button>
+          </div>
+        </div>
+      </header>
 
-      <div className="agent-bar" id="agent">
-        <div className="avatar" aria-hidden>
-          NG
-        </div>
-        <div className="agent-bar-copy">
-          <strong>{identity?.display_name || AGENT_ENS}</strong>
-          <span>
-            {identity?.resolved ? `Resolved · ${shortAddr}` : "Resolving ENS…"}
-          </span>
-        </div>
-        <div className="agent-bar-credits">
-          <em>Balance</em>
-          <strong>{credits ?? "—"}</strong>
-          <button type="button" className="link-btn" onClick={onTopUp}>
-            Add credits
-          </button>
-        </div>
-      </div>
-
-      <section className="query-shell" id="query">
-        <div className="query-top">
-          <h2>Conversation</h2>
-          <div className="meta">
-            {online ? "Connected" : "Offline"}
-            {credits != null ? ` · ${credits} credits` : ""}
+      <section className="workspace" id="query" aria-label="Agent workspace">
+        <div className="workspace-head" id="agent">
+          <div className="workspace-avatar" aria-hidden>
+            NG
+          </div>
+          <div>
+            <h2>{identity?.display_name || AGENT_ENS}</h2>
+            <p>
+              {identity?.resolved
+                ? `ENS resolved · ${shortAddr}`
+                : "Resolving ENS…"}
+            </p>
+          </div>
+          <div className="workspace-actions">
             {messages.length > 0 && (
-              <>
-                {" · "}
-                <button
-                  type="button"
-                  className="link-btn"
-                  onClick={() => {
-                    persist([]);
-                    setOpenReceipt(null);
-                  }}
-                >
-                  New chat
-                </button>
-              </>
+              <button
+                type="button"
+                className="ghost-btn"
+                onClick={() => {
+                  persist([]);
+                  setOpenReceipt(null);
+                }}
+              >
+                New chat
+              </button>
             )}
           </div>
         </div>
 
-        <div className="chat-thread" aria-live="polite">
+        <div className="thread" aria-live="polite">
           {messages.length === 0 && (
-            <div className="chat-empty">
-              Ask about markets or any ENS name.
+            <div className="empty">
+              <h3>Start a query</h3>
+              <p>
+                Ask about Uniswap markets or look up any ENS name on The Graph.
+              </p>
               <div className="suggestions">
                 {SUGGESTIONS.map((s) => (
                   <button
@@ -263,59 +257,73 @@ export default function HomePage() {
           )}
 
           {messages.map((m) => (
-            <article key={m.id} className={`msg ${m.role}`}>
-              <p className="msg-label">
-                {m.role === "user" ? "You" : AGENT_ENS}
-                {m.subgraph ? ` · ${m.subgraph}` : ""}
-              </p>
-              <p className="msg-body">{m.text}</p>
-              {m.receipt && (
-                <>
-                  <button
-                    type="button"
-                    className="receipt-toggle"
-                    onClick={() =>
-                      setOpenReceipt((id) =>
-                        id === m.receipt!.id ? null : m.receipt!.id,
-                      )
-                    }
-                  >
-                    {openReceipt === m.receipt.id
-                      ? "Hide receipt"
-                      : "View receipt"}
-                  </button>
-                  {openReceipt === m.receipt.id && (
-                    <div className="receipt-row">
-                      <span>
-                        Proof <strong>{m.receipt.proof}</strong>
-                      </span>
-                      <span>
-                        Subgraph <strong>{m.receipt.subgraph}</strong>
-                      </span>
-                      <span>
-                        Intent <strong>{m.receipt.intent}</strong>
-                      </span>
-                      <span>
-                        Credits <strong>{m.receipt.credits}</strong>
-                      </span>
-                    </div>
-                  )}
-                </>
-              )}
-            </article>
+            <div key={m.id} className={`row ${m.role}`}>
+              <div className="row-avatar" aria-hidden>
+                {m.role === "user" ? "YOU" : "NG"}
+              </div>
+              <div className="bubble">
+                <p className="bubble-meta">
+                  {m.role === "user" ? "You" : AGENT_ENS}
+                  {m.subgraph ? ` · ${m.subgraph}` : ""}
+                </p>
+                <p className="bubble-text">{m.text}</p>
+                {m.receipt && (
+                  <>
+                    <button
+                      type="button"
+                      className="receipt-btn"
+                      onClick={() =>
+                        setOpenReceipt((id) =>
+                          id === m.receipt!.id ? null : m.receipt!.id,
+                        )
+                      }
+                    >
+                      {openReceipt === m.receipt.id
+                        ? "Hide receipt"
+                        : "View receipt"}
+                    </button>
+                    {openReceipt === m.receipt.id && (
+                      <div className="receipt">
+                        <div>
+                          <span>Proof</span>
+                          <strong>{m.receipt.proof}</strong>
+                        </div>
+                        <div>
+                          <span>Subgraph</span>
+                          <strong>{m.receipt.subgraph}</strong>
+                        </div>
+                        <div>
+                          <span>Intent</span>
+                          <strong>{m.receipt.intent}</strong>
+                        </div>
+                        <div>
+                          <span>Credits</span>
+                          <strong>{m.receipt.credits}</strong>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
           ))}
 
           {loading && (
-            <article className="msg agent">
-              <p className="msg-label">{AGENT_ENS}</p>
-              <p className="msg-body typing">Querying The Graph…</p>
-            </article>
+            <div className="row agent">
+              <div className="row-avatar" aria-hidden>
+                NG
+              </div>
+              <div className="bubble">
+                <p className="bubble-meta">{AGENT_ENS}</p>
+                <p className="bubble-text typing">Querying The Graph…</p>
+              </div>
+            </div>
           )}
           <div ref={bottomRef} />
         </div>
 
-        <form onSubmit={onAsk} className="ask-form">
-          <div className="ask-composer">
+        <form className="composer" onSubmit={onAsk}>
+          <div className="composer-box">
             <textarea
               ref={inputRef}
               value={question}
@@ -335,9 +343,8 @@ export default function HomePage() {
             </button>
           </div>
           <p className="composer-hint">Enter to send · 1 credit / query</p>
+          {error && <p className="chat-error">{error}</p>}
         </form>
-
-        {error && <p className="chat-error">{error}</p>}
       </section>
     </main>
   );
