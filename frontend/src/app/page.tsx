@@ -173,8 +173,6 @@ export default function HomePage() {
   return (
     <main>
       <div className="status-row">
-        <p className="pill">ETHOnline 2026</p>
-        <p className="pill">The Graph · ENS · Privy</p>
         <span className={`status-dot ${online ? "online" : "offline"}`}>
           {online ? "Backend online" : "Backend offline"}
         </span>
@@ -182,11 +180,10 @@ export default function HomePage() {
 
       <h1>NameGraph</h1>
       <p className="tag">
-        Agent <strong>{AGENT_ENS}</strong> — ENS-named agents that pay to query
-        The Graph.
+        Agent <strong>{AGENT_ENS}</strong> — ask onchain questions, pay per query.
       </p>
 
-      <div className="card agent-card">
+      <div className="card agent-card" id="agent">
         <div className="agent-row">
           {identity?.avatar ? (
             <img className="avatar" src={identity.avatar} alt={AGENT_ENS} />
@@ -212,7 +209,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      <div className="card">
+      <div className="card" id="ask">
         <p className="meta">
           Privy wallet login next — demo credits simulate pay-per-query today.
         </p>
@@ -287,7 +284,7 @@ export default function HomePage() {
       )}
 
       {history.length > 0 && (
-        <div className="card">
+        <div className="card" id="history">
           <p className="meta">Recent queries (this browser)</p>
           <ul className="history">
             {history.map((item) => (
