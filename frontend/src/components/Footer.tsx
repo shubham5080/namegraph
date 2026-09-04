@@ -1,10 +1,9 @@
-const GITHUB_URL = "https://github.com/shubham5080/namegraph";
-
-const PARTNERS = [
-  { name: "The Graph", href: "https://thegraph.com" },
-  { name: "ENS", href: "https://ens.domains" },
-  { name: "Privy", href: "https://privy.io" },
-];
+const LINKS = {
+  graph: "https://thegraph.com",
+  ens: "https://ens.domains",
+  privy: "https://privy.io",
+  github: "https://github.com/shubham5080/namegraph",
+};
 
 export default function Footer() {
   return (
@@ -13,56 +12,44 @@ export default function Footer() {
         <div className="footer-brand">
           <p className="footer-title">NameGraph</p>
           <p className="footer-tagline">
-            ENS-named agents that pay to query The Graph for live onchain
-            answers.
+            Query live onchain data through an ENS-named agent.
           </p>
         </div>
 
         <div className="footer-col">
           <p className="footer-label">Product</p>
-          <a href="/#agent">Agent identity</a>
-          <a href="/#ask">Ask the agent</a>
-          <a href="/#history">Query history</a>
+          <a href="/#query">Query</a>
+          <a href="/#agent">Agent</a>
         </div>
 
         <div className="footer-col">
-          <p className="footer-label">Partners</p>
-          {PARTNERS.map((p) => (
-            <a key={p.name} href={p.href} target="_blank" rel="noreferrer">
-              {p.name}
-            </a>
-          ))}
+          <p className="footer-label">Network</p>
+          <a href={LINKS.graph} target="_blank" rel="noreferrer">
+            The Graph
+          </a>
+          <a href={LINKS.ens} target="_blank" rel="noreferrer">
+            ENS
+          </a>
+          <a href={LINKS.privy} target="_blank" rel="noreferrer">
+            Privy
+          </a>
         </div>
 
         <div className="footer-col">
-          <p className="footer-label">Resources</p>
-          <a href={GITHUB_URL} target="_blank" rel="noreferrer">
+          <p className="footer-label">Developers</p>
+          <a href={LINKS.github} target="_blank" rel="noreferrer">
             GitHub
           </a>
-          <a
-            href={`${GITHUB_URL}/blob/main/PLAN.md`}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Build plan
-          </a>
-          <a
-            href={`${GITHUB_URL}/blob/main/AI_USAGE.md`}
-            target="_blank"
-            rel="noreferrer"
-          >
-            AI disclosure
-          </a>
           <a href="https://thegraph.com/docs/" target="_blank" rel="noreferrer">
-            The Graph Docs
+            Graph Docs
           </a>
         </div>
       </div>
 
       <div className="site-footer-bottom">
-        <p>Built for ETHOnline 2026 · Classic / From Scratch</p>
+        <p>© {new Date().getFullYear()} NameGraph</p>
         <p>
-          Agent <strong>namegraph.eth</strong> · MIT License
+          <strong>namegraph.eth</strong>
         </p>
       </div>
     </footer>

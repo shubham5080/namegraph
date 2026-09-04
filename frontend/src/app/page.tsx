@@ -5,13 +5,10 @@ import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const AGENT_ENS = process.env.NEXT_PUBLIC_AGENT_ENS || "namegraph.eth";
 
-const FALLBACK_DEMO_QUESTIONS = [
-  "How many Uniswap V3 pools does the factory report?",
-  "What is the total trading volume on Uniswap V3?",
-  "Show the latest Uniswap V3 swaps",
-  "What are the top Uniswap V3 pools by TVL?",
-  "Look up vitalik.eth on the ENS subgraph",
-  "Who is namegraph.eth?",
+const SUGGESTIONS = [
+  "How many Uniswap V3 pools exist?",
+  "Show latest Uniswap V3 swaps",
+  "Look up vitalik.eth",
 ];
 
 type AgentIdentity = {
@@ -51,7 +48,6 @@ type ChatMessage = {
   text: string;
   at: string;
   receipt?: Receipt;
-  source?: string;
   subgraph?: string;
 };
 
@@ -66,17 +62,17 @@ function getSessionId(): string {
 }
 
 export default function HomePage() {
-  const [sessionId, setSessionId] = useState("demo");
+  const [sessionId, setSessionId] = useState("local");
   const [online, setOnline] = useState(false);
   const [identity, setIdentity] = useState<AgentIdentity | null>(null);
   const [credits, setCredits] = useState<number | null>(null);
-  const [demoQuestions, setDemoQuestions] = useState(FALLBACK_DEMO_QUESTIONS);
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [openReceipt, setOpenReceipt] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
   const apiHeaders = useCallback(
     () => ({
@@ -88,22 +84,17 @@ export default function HomePage() {
 
   const refreshStatus = useCallback(async () => {
     try {
-      const [healthRes, identityRes, creditsRes, agentRes] = await Promise.all([
+      const [healthRes, identityRes, creditsRes] = await Promise.all([
         fetch(`${API_URL}/health`),
         fetch(`${API_URL}/agent/identity`),
         fetch(`${API_URL}/credits`, { headers: apiHeaders() }),
-        fetch(`${API_URL}/agent`),
       ]);
-      if (!healthRes.ok) throw new Error("backend offline");
+      if (!healthRes.ok) throw new Error("offline");
       setOnline(true);
       if (identityRes.ok) setIdentity((await identityRes.json()) as AgentIdentity);
       if (creditsRes.ok) {
         const data = await creditsRes.json();
         setCredits(data.balance as number);
-      }
-      if (agentRes.ok) {
-        const data = await agentRes.json();
-        if (Array.isArray(data.demo_questions)) setDemoQuestions(data.demo_questions);
       }
     } catch {
       setOnline(false);
@@ -124,7 +115,7 @@ export default function HomePage() {
 
   useEffect(() => {
     refreshStatus();
-    const timer = setInterval(refreshStatus, 10000);
+    const timer = setInterval(refreshStatus, 12000);
     return () => clearInterval(timer);
   }, [refreshStatus]);
 
@@ -149,7 +140,7 @@ export default function HomePage() {
 
   async function ask(q: string) {
     const trimmed = q.trim();
-    if (!trimmed || loading) return;
+    if (!trimmed || loading || !online) return;
     setLoading(true);
     setError(null);
     setQuestion("");
@@ -169,9 +160,9 @@ export default function HomePage() {
         body: JSON.stringify({ question: trimmed }),
       });
       if (res.status === 402) {
-        throw new Error("Out of credits — top up to keep querying.");
+        throw new Error("Insufficient credits. Top up to continue.");
       }
-      if (!res.ok) throw new Error(`API ${res.status}`);
+      if (!res.ok) throw new Error(`Request failed (${res.status})`);
       const data = (await res.json()) as AskResponse;
       setCredits(data.credits_remaining);
       const agentMsg: ChatMessage = {
@@ -180,7 +171,6 @@ export default function HomePage() {
         text: data.answer,
         at: new Date().toISOString(),
         receipt: data.receipt,
-        source: String(data.graph.source ?? "thegraph"),
         subgraph: String(data.graph.subgraph ?? data.receipt.subgraph),
       };
       persist([...messages, userMsg, agentMsg]);
@@ -189,6 +179,7 @@ export default function HomePage() {
       setError(err instanceof Error ? err.message : "Request failed");
     } finally {
       setLoading(false);
+      inputRef.current?.focus();
     }
   }
 
@@ -201,53 +192,50 @@ export default function HomePage() {
     ? `${identity.address.slice(0, 6)}…${identity.address.slice(-4)}`
     : null;
 
+  const canSend =
+    !loading && online && question.trim().length > 0 && credits !== 0;
+
   return (
     <main>
       <section className="hero">
-        <p className="hero-eyebrow">ENS agent · The Graph data · Privy payments</p>
-        <div className="status-row">
-          <span className={`status-dot ${online ? "online" : "offline"}`}>
-            {online ? "Backend online" : "Backend offline"}
-          </span>
-        </div>
-        <h1>Talk to onchain data by name</h1>
+        <h1>Onchain answers, by name</h1>
         <p className="tag">
-          <strong>{AGENT_ENS}</strong> is an ENS-named agent that routes your
-          question to The Graph, charges a credit, and returns a receipt.
+          Ask <strong>{AGENT_ENS}</strong>. It routes to The Graph, settles a
+          credit, and returns a verifiable receipt.
         </p>
       </section>
 
-      <div className="card agent-card" id="agent">
+      <section className="card agent-card" id="agent" aria-label="Agent">
         <div className="agent-row">
-          <div className="avatar-tile">
-            <div className="avatar placeholder">NG</div>
+          <div className="avatar placeholder" aria-hidden>
+            NG
           </div>
           <div>
             <p className="agent-name">{identity?.display_name || AGENT_ENS}</p>
             <p className="meta">
               {identity?.resolved
-                ? `ENS resolved · ${shortAddr}`
+                ? `Resolved · ${shortAddr}`
                 : "Resolving ENS…"}
-            </p>
-            <p className="meta">
-              Routes Uniswap V3 + ENS subgraphs · pay per query
             </p>
           </div>
           <div className="credits-box">
-            <p className="credits-label">Credits</p>
+            <p className="credits-label">Balance</p>
             <p className="credits-value">{credits ?? "—"}</p>
             <button type="button" className="ghost small" onClick={onTopUp}>
-              Top up (+5)
+              Add credits
             </button>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div className="card chat-card" id="ask">
+      <section className="card chat-card" id="query" aria-label="Query">
         <div className="chat-header">
           <div>
-            <p className="agent-name">Agent chat</p>
-            <p className="meta">Try a demo question or type your own</p>
+            <p className="agent-name">Conversation</p>
+            <p className="meta">
+              {online ? "Connected" : "Service unavailable"}
+              {credits != null ? ` · ${credits} credits` : ""}
+            </p>
           </div>
           {messages.length > 0 && (
             <button
@@ -258,39 +246,38 @@ export default function HomePage() {
                 setOpenReceipt(null);
               }}
             >
-              Clear
+              New chat
             </button>
           )}
-        </div>
-
-        <div className="chips">
-          {demoQuestions.map((demo) => (
-            <button
-              key={demo}
-              type="button"
-              className="chip"
-              disabled={loading || !online}
-              onClick={() => ask(demo)}
-            >
-              {demo}
-            </button>
-          ))}
         </div>
 
         <div className="chat-thread" aria-live="polite">
           {messages.length === 0 && (
             <div className="chat-empty">
-              Ask about Uniswap pools, volume, swaps — or look up any{" "}
-              <code>.eth</code> name on the ENS subgraph.
+              <p>Ask about Uniswap markets or any ENS name.</p>
+              <div className="suggestions">
+                {SUGGESTIONS.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    className="suggestion"
+                    disabled={loading || !online}
+                    onClick={() => ask(s)}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
+
           {messages.map((m) => (
-            <div key={m.id} className={`bubble ${m.role}`}>
-              <div className="bubble-meta">
+            <article key={m.id} className={`bubble ${m.role}`}>
+              <header className="bubble-meta">
                 {m.role === "user" ? "You" : AGENT_ENS}
                 {m.subgraph ? ` · ${m.subgraph}` : ""}
-              </div>
-              <div className="bubble-text">{m.text}</div>
+              </header>
+              <p className="bubble-text">{m.text}</p>
               {m.receipt && (
                 <div className="receipt-wrap">
                   <button
@@ -302,59 +289,59 @@ export default function HomePage() {
                       )
                     }
                   >
-                    {openReceipt === m.receipt.id ? "Hide" : "View"} receipt
+                    {openReceipt === m.receipt.id ? "Hide receipt" : "Receipt"}
                   </button>
                   {openReceipt === m.receipt.id && (
-                    <div className="receipt">
+                    <dl className="receipt">
                       <div>
-                        <span>Proof</span>
-                        <strong>{m.receipt.proof}</strong>
+                        <dt>Proof</dt>
+                        <dd>{m.receipt.proof}</dd>
                       </div>
                       <div>
-                        <span>Paid by</span>
-                        <strong>{m.receipt.paid_by}</strong>
+                        <dt>Paid by</dt>
+                        <dd>{m.receipt.paid_by}</dd>
                       </div>
                       <div>
-                        <span>Subgraph</span>
-                        <strong>
+                        <dt>Subgraph</dt>
+                        <dd>
                           {m.receipt.subgraph} ·{" "}
-                          {m.receipt.subgraph_id.slice(0, 8)}…
-                        </strong>
+                          {m.receipt.subgraph_id.slice(0, 10)}…
+                        </dd>
                       </div>
                       <div>
-                        <span>Intent</span>
-                        <strong>{m.receipt.intent}</strong>
+                        <dt>Intent</dt>
+                        <dd>{m.receipt.intent}</dd>
                       </div>
                       <div>
-                        <span>Credits</span>
-                        <strong>{m.receipt.credits}</strong>
+                        <dt>Credits</dt>
+                        <dd>{m.receipt.credits}</dd>
                       </div>
-                    </div>
+                    </dl>
                   )}
                 </div>
               )}
-            </div>
+            </article>
           ))}
+
           {loading && (
-            <div className="bubble agent">
-              <div className="bubble-meta">{AGENT_ENS}</div>
-              <div className="bubble-text typing">Querying The Graph…</div>
-            </div>
+            <article className="bubble agent">
+              <header className="bubble-meta">{AGENT_ENS}</header>
+              <p className="bubble-text typing">Querying The Graph…</p>
+            </article>
           )}
           <div ref={bottomRef} />
         </div>
 
         <form onSubmit={onAsk} className="ask-form">
-          <div className="ask-composer">
-            <span className="ask-icon" aria-hidden>
-              ⌕
-            </span>
+          <div className={`ask-composer ${!online ? "disabled" : ""}`}>
             <textarea
+              ref={inputRef}
               id="q"
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
-              placeholder="Ask namegraph.eth anything onchain…"
-              rows={2}
+              placeholder={`Message ${AGENT_ENS}`}
+              rows={1}
+              disabled={!online || loading}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
@@ -362,26 +349,17 @@ export default function HomePage() {
                 }
               }}
             />
+            <button type="submit" className="send-btn" disabled={!canSend}>
+              {loading ? "…" : "Send"}
+            </button>
           </div>
-          <button
-            type="submit"
-            disabled={loading || !question.trim() || !online || credits === 0}
-          >
-            {loading ? "Querying…" : "Ask (1 credit)"}
-          </button>
+          <p className="composer-hint">
+            Enter to send · Shift+Enter for newline · 1 credit / query
+          </p>
         </form>
 
-        {error && <p className="chat-error">Error: {error}</p>}
-        {!online && (
-          <p className="meta">
-            Start backend:{" "}
-            <code>
-              cd backend && source .venv/bin/activate && uvicorn app.main:app
-              --reload --port 8000
-            </code>
-          </p>
-        )}
-      </div>
+        {error && <p className="chat-error">{error}</p>}
+      </section>
     </main>
   );
 }
