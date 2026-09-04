@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const AGENT_ENS = process.env.NEXT_PUBLIC_AGENT_ENS || "namegraph.eth";
@@ -8,19 +8,31 @@ const AGENT_ENS = process.env.NEXT_PUBLIC_AGENT_ENS || "namegraph.eth";
 const FALLBACK_DEMO_QUESTIONS = [
   "How many Uniswap V3 pools does the factory report?",
   "What is the total trading volume on Uniswap V3?",
-  "How many transactions has Uniswap V3 processed?",
+  "Show the latest Uniswap V3 swaps",
   "What are the top Uniswap V3 pools by TVL?",
+  "Look up vitalik.eth on the ENS subgraph",
+  "Who is namegraph.eth?",
 ];
 
 type AgentIdentity = {
   ens: string;
-  name: string;
   display_name: string;
   resolved: boolean;
   address: string | null;
   avatar: string | null;
   tagline: string;
-  partners: string[];
+};
+
+type Receipt = {
+  id: string;
+  paid_by: string;
+  agent: string;
+  intent: string;
+  subgraph: string;
+  subgraph_id: string;
+  credits: number;
+  ts: number;
+  proof: string;
 };
 
 type AskResponse = {
@@ -30,14 +42,17 @@ type AskResponse = {
   graph: Record<string, unknown>;
   credits_charged: number;
   credits_remaining: number;
+  receipt: Receipt;
 };
 
-type HistoryItem = {
+type ChatMessage = {
   id: string;
-  question: string;
-  answer: string;
+  role: "user" | "agent";
+  text: string;
   at: string;
-  source: string;
+  receipt?: Receipt;
+  source?: string;
+  subgraph?: string;
 };
 
 function getSessionId(): string {
@@ -56,12 +71,12 @@ export default function HomePage() {
   const [identity, setIdentity] = useState<AgentIdentity | null>(null);
   const [credits, setCredits] = useState<number | null>(null);
   const [demoQuestions, setDemoQuestions] = useState(FALLBACK_DEMO_QUESTIONS);
-  const [question, setQuestion] = useState(FALLBACK_DEMO_QUESTIONS[0]);
+  const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<AskResponse | null>(null);
-  const [history, setHistory] = useState<HistoryItem[]>([]);
-  const [showRaw, setShowRaw] = useState(false);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [openReceipt, setOpenReceipt] = useState<string | null>(null);
+  const bottomRef = useRef<HTMLDivElement | null>(null);
 
   const apiHeaders = useCallback(
     () => ({
@@ -90,7 +105,6 @@ export default function HomePage() {
         const data = await agentRes.json();
         if (Array.isArray(data.demo_questions)) setDemoQuestions(data.demo_questions);
       }
-      setError(null);
     } catch {
       setOnline(false);
     }
@@ -98,72 +112,89 @@ export default function HomePage() {
 
   useEffect(() => {
     setSessionId(getSessionId());
-    const saved = localStorage.getItem("namegraph_history");
+    const saved = localStorage.getItem("namegraph_chat");
     if (saved) {
       try {
-        setHistory(JSON.parse(saved) as HistoryItem[]);
+        setMessages(JSON.parse(saved) as ChatMessage[]);
       } catch {
-        // ignore corrupt history
+        // ignore
       }
     }
   }, []);
 
   useEffect(() => {
     refreshStatus();
-    const timer = setInterval(refreshStatus, 8000);
+    const timer = setInterval(refreshStatus, 10000);
     return () => clearInterval(timer);
   }, [refreshStatus]);
 
-  async function onTopUp() {
-    try {
-      const res = await fetch(`${API_URL}/credits/topup`, {
-        method: "POST",
-        headers: apiHeaders(),
-      });
-      if (!res.ok) throw new Error(`Top-up failed (${res.status})`);
-      const data = await res.json();
-      setCredits(data.balance as number);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Top-up failed");
-    }
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, loading]);
+
+  function persist(next: ChatMessage[]) {
+    setMessages(next);
+    localStorage.setItem("namegraph_chat", JSON.stringify(next.slice(-40)));
   }
 
-  async function onAsk(e?: FormEvent) {
-    e?.preventDefault();
+  async function onTopUp() {
+    const res = await fetch(`${API_URL}/credits/topup`, {
+      method: "POST",
+      headers: apiHeaders(),
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    setCredits(data.balance as number);
+  }
+
+  async function ask(q: string) {
+    const trimmed = q.trim();
+    if (!trimmed || loading) return;
     setLoading(true);
     setError(null);
-    setShowRaw(false);
+    setQuestion("");
+
+    const userMsg: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: "user",
+      text: trimmed,
+      at: new Date().toISOString(),
+    };
+    persist([...messages, userMsg]);
+
     try {
       const res = await fetch(`${API_URL}/ask`, {
         method: "POST",
         headers: apiHeaders(),
-        body: JSON.stringify({ question }),
+        body: JSON.stringify({ question: trimmed }),
       });
       if (res.status === 402) {
-        throw new Error("Out of credits — use Top up (+5) to keep querying.");
+        throw new Error("Out of credits — top up to keep querying.");
       }
       if (!res.ok) throw new Error(`API ${res.status}`);
       const data = (await res.json()) as AskResponse;
-      setResult(data);
       setCredits(data.credits_remaining);
-      const item: HistoryItem = {
+      const agentMsg: ChatMessage = {
         id: crypto.randomUUID(),
-        question: data.question,
-        answer: data.answer,
+        role: "agent",
+        text: data.answer,
         at: new Date().toISOString(),
-        source: String(data.graph.source ?? "unknown"),
+        receipt: data.receipt,
+        source: String(data.graph.source ?? "thegraph"),
+        subgraph: String(data.graph.subgraph ?? data.receipt.subgraph),
       };
-      setHistory((prev) => {
-        const next = [item, ...prev].slice(0, 8);
-        localStorage.setItem("namegraph_history", JSON.stringify(next));
-        return next;
-      });
+      persist([...messages, userMsg, agentMsg]);
+      setOpenReceipt(data.receipt.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Request failed");
     } finally {
       setLoading(false);
     }
+  }
+
+  async function onAsk(e?: FormEvent) {
+    e?.preventDefault();
+    await ask(question);
   }
 
   const shortAddr = identity?.address
@@ -173,49 +204,34 @@ export default function HomePage() {
   return (
     <main>
       <section className="hero">
-        <p className="hero-eyebrow">Built with The Graph · ENS · Privy</p>
+        <p className="hero-eyebrow">ENS agent · The Graph data · Privy payments</p>
         <div className="status-row">
           <span className={`status-dot ${online ? "online" : "offline"}`}>
             {online ? "Backend online" : "Backend offline"}
           </span>
         </div>
-        <h1>Fast, easy access to onchain answers</h1>
+        <h1>Talk to onchain data by name</h1>
         <p className="tag">
-          Agent <strong>{AGENT_ENS}</strong> pays to query The Graph — then
-          answers in plain language.
+          <strong>{AGENT_ENS}</strong> is an ENS-named agent that routes your
+          question to The Graph, charges a credit, and returns a receipt.
         </p>
       </section>
 
       <div className="card agent-card" id="agent">
         <div className="agent-row">
           <div className="avatar-tile">
-            {identity?.avatar ? (
-              <img
-                className="avatar"
-                src={identity.avatar}
-                alt={AGENT_ENS}
-                onError={(e) => {
-                  e.currentTarget.style.display = "none";
-                  const fallback = e.currentTarget.nextElementSibling;
-                  if (fallback instanceof HTMLElement) fallback.hidden = false;
-                }}
-              />
-            ) : null}
-            <div
-              className="avatar placeholder"
-              hidden={Boolean(identity?.avatar)}
-            >
-              NG
-            </div>
+            <div className="avatar placeholder">NG</div>
           </div>
           <div>
             <p className="agent-name">{identity?.display_name || AGENT_ENS}</p>
             <p className="meta">
               {identity?.resolved
                 ? `ENS resolved · ${shortAddr}`
-                : "ENS profile loading…"}
+                : "Resolving ENS…"}
             </p>
-            <p className="meta">{identity?.tagline}</p>
+            <p className="meta">
+              Routes Uniswap V3 + ENS subgraphs · pay per query
+            </p>
           </div>
           <div className="credits-box">
             <p className="credits-label">Credits</p>
@@ -227,10 +243,26 @@ export default function HomePage() {
         </div>
       </div>
 
-      <div className="card" id="ask">
-        <p className="meta">
-          Privy wallet login next — demo credits simulate pay-per-query today.
-        </p>
+      <div className="card chat-card" id="ask">
+        <div className="chat-header">
+          <div>
+            <p className="agent-name">Agent chat</p>
+            <p className="meta">Try a demo question or type your own</p>
+          </div>
+          {messages.length > 0 && (
+            <button
+              type="button"
+              className="ghost small"
+              onClick={() => {
+                persist([]);
+                setOpenReceipt(null);
+              }}
+            >
+              Clear
+            </button>
+          )}
+        </div>
+
         <div className="chips">
           {demoQuestions.map((demo) => (
             <button
@@ -238,17 +270,81 @@ export default function HomePage() {
               type="button"
               className="chip"
               disabled={loading || !online}
-              onClick={() => {
-                setQuestion(demo);
-                setResult(null);
-              }}
+              onClick={() => ask(demo)}
             >
               {demo}
             </button>
           ))}
         </div>
+
+        <div className="chat-thread" aria-live="polite">
+          {messages.length === 0 && (
+            <div className="chat-empty">
+              Ask about Uniswap pools, volume, swaps — or look up any{" "}
+              <code>.eth</code> name on the ENS subgraph.
+            </div>
+          )}
+          {messages.map((m) => (
+            <div key={m.id} className={`bubble ${m.role}`}>
+              <div className="bubble-meta">
+                {m.role === "user" ? "You" : AGENT_ENS}
+                {m.subgraph ? ` · ${m.subgraph}` : ""}
+              </div>
+              <div className="bubble-text">{m.text}</div>
+              {m.receipt && (
+                <div className="receipt-wrap">
+                  <button
+                    type="button"
+                    className="ghost small"
+                    onClick={() =>
+                      setOpenReceipt((id) =>
+                        id === m.receipt!.id ? null : m.receipt!.id,
+                      )
+                    }
+                  >
+                    {openReceipt === m.receipt.id ? "Hide" : "View"} receipt
+                  </button>
+                  {openReceipt === m.receipt.id && (
+                    <div className="receipt">
+                      <div>
+                        <span>Proof</span>
+                        <strong>{m.receipt.proof}</strong>
+                      </div>
+                      <div>
+                        <span>Paid by</span>
+                        <strong>{m.receipt.paid_by}</strong>
+                      </div>
+                      <div>
+                        <span>Subgraph</span>
+                        <strong>
+                          {m.receipt.subgraph} ·{" "}
+                          {m.receipt.subgraph_id.slice(0, 8)}…
+                        </strong>
+                      </div>
+                      <div>
+                        <span>Intent</span>
+                        <strong>{m.receipt.intent}</strong>
+                      </div>
+                      <div>
+                        <span>Credits</span>
+                        <strong>{m.receipt.credits}</strong>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+          {loading && (
+            <div className="bubble agent">
+              <div className="bubble-meta">{AGENT_ENS}</div>
+              <div className="bubble-text typing">Querying The Graph…</div>
+            </div>
+          )}
+          <div ref={bottomRef} />
+        </div>
+
         <form onSubmit={onAsk} className="ask-form">
-          <label htmlFor="q">Ask NameGraph</label>
           <div className="ask-composer">
             <span className="ask-icon" aria-hidden>
               ⌕
@@ -257,8 +353,14 @@ export default function HomePage() {
               id="q"
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
-              placeholder="Search by question — e.g. How many Uniswap V3 pools?"
-              rows={3}
+              placeholder="Ask namegraph.eth anything onchain…"
+              rows={2}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  void ask(question);
+                }
+              }}
             />
           </div>
           <button
@@ -268,77 +370,18 @@ export default function HomePage() {
             {loading ? "Querying…" : "Ask (1 credit)"}
           </button>
         </form>
-      </div>
 
-      {error && (
-        <div className="card error-card">
-          <p className="answer">Error: {error}</p>
-          {!online && (
-            <p className="meta">
-              Start backend:{" "}
-              <code>
-                cd backend && source .venv/bin/activate && uvicorn app.main:app
-                --reload --port 8000
-              </code>
-            </p>
-          )}
-        </div>
-      )}
-
-      {result && (
-        <div className="card">
+        {error && <p className="chat-error">Error: {error}</p>}
+        {!online && (
           <p className="meta">
-            {result.agent} · charged {result.credits_charged} credit ·{" "}
-            {result.credits_remaining} left · source{" "}
-            {String(result.graph.source ?? "unknown")}
+            Start backend:{" "}
+            <code>
+              cd backend && source .venv/bin/activate && uvicorn app.main:app
+              --reload --port 8000
+            </code>
           </p>
-          <p className="answer">{result.answer}</p>
-          <button
-            type="button"
-            className="ghost"
-            onClick={() => setShowRaw((v) => !v)}
-          >
-            {showRaw ? "Hide" : "View"} Graph response
-          </button>
-          {showRaw && (
-            <pre className="meta raw-json">
-              {JSON.stringify(result.graph, null, 2)}
-            </pre>
-          )}
-        </div>
-      )}
-
-      {history.length > 0 && (
-        <div className="card" id="history">
-          <p className="meta">Recent queries (this browser)</p>
-          <ul className="history">
-            {history.map((item) => (
-              <li key={item.id}>
-                <button
-                  type="button"
-                  className="history-item"
-                  onClick={() => {
-                    setQuestion(item.question);
-                    setResult({
-                      agent: AGENT_ENS,
-                      question: item.question,
-                      answer: item.answer,
-                      graph: { source: item.source },
-                      credits_charged: 1,
-                      credits_remaining: credits ?? 0,
-                    });
-                  }}
-                >
-                  <span className="history-q">{item.question}</span>
-                  <span className="history-meta">
-                    {new Date(item.at).toLocaleTimeString()} · {item.source}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+        )}
+      </div>
     </main>
   );
 }

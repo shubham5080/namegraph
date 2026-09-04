@@ -1,8 +1,12 @@
-"""Route natural-language questions to GraphQL and format answers."""
+"""Route natural-language questions across multiple Graph subgraphs."""
 
 from __future__ import annotations
 
+import re
+from dataclasses import dataclass
 from enum import Enum
+
+from .config import settings
 
 
 class Intent(str, Enum):
@@ -10,10 +14,22 @@ class Intent(str, Enum):
     TX_COUNT = "tx_count"
     VOLUME = "volume"
     TOP_POOLS = "top_pools"
-    DEFAULT = "default"
+    RECENT_SWAPS = "recent_swaps"
+    ENS_DOMAIN = "ens_domain"
+    ENS_AGENT = "ens_agent"
+    SNAPSHOT = "snapshot"
 
 
-QUERIES: dict[Intent, str] = {
+@dataclass
+class RoutedQuery:
+    intent: Intent
+    query: str
+    subgraph_id: str
+    subgraph_name: str
+    extracted: dict | None = None
+
+
+UNISWAP_QUERIES: dict[Intent, str] = {
     Intent.POOL_COUNT: """
 {
   factories(first: 1) {
@@ -49,7 +65,18 @@ QUERIES: dict[Intent, str] = {
   }
 }
 """,
-    Intent.DEFAULT: """
+    Intent.RECENT_SWAPS: """
+{
+  swaps(first: 5, orderBy: timestamp, orderDirection: desc) {
+    id
+    timestamp
+    amountUSD
+    token0 { symbol }
+    token1 { symbol }
+  }
+}
+""",
+    Intent.SNAPSHOT: """
 {
   factories(first: 1) {
     id
@@ -61,39 +88,84 @@ QUERIES: dict[Intent, str] = {
 """,
 }
 
+
 DEMO_QUESTIONS = [
     "How many Uniswap V3 pools does the factory report?",
     "What is the total trading volume on Uniswap V3?",
-    "How many transactions has Uniswap V3 processed?",
+    "Show the latest Uniswap V3 swaps",
     "What are the top Uniswap V3 pools by TVL?",
+    "Look up vitalik.eth on the ENS subgraph",
+    "Who is namegraph.eth?",
 ]
 
 
-def route_question(question: str) -> tuple[Intent, str]:
-    """Pick a GraphQL query from a natural-language question."""
-    q = question.lower()
-
-    if any(
-        phrase in q
-        for phrase in ("top pool", "top pools", "highest tvl", "largest pool", "by tvl")
-    ):
-        return Intent.TOP_POOLS, QUERIES[Intent.TOP_POOLS]
-    if any(phrase in q for phrase in ("volume", "trading volume", "total volume")):
-        return Intent.VOLUME, QUERIES[Intent.VOLUME]
-    if any(
-        phrase in q
-        for phrase in ("transaction", "transactions", "tx count", "txs", "swaps")
-    ):
-        return Intent.TX_COUNT, QUERIES[Intent.TX_COUNT]
-    if any(phrase in q for phrase in ("pool", "pools", "how many")):
-        return Intent.POOL_COUNT, QUERIES[Intent.POOL_COUNT]
-
-    return Intent.DEFAULT, QUERIES[Intent.DEFAULT]
+def _ens_domain_query(name: str) -> str:
+    safe = name.replace('\\', '\\\\').replace('"', '\\"')
+    return f"""
+{{
+  domains(where: {{ name: "{safe}" }}, first: 1) {{
+    name
+    id
+    createdAt
+    subdomainCount
+    resolvedAddress {{ id }}
+    owner {{ id }}
+    resolver {{ address texts }}
+  }}
+}}
+"""
 
 
-def _fmt_usd(value: str) -> str:
+def route_question(question: str) -> RoutedQuery:
+    """Pick subgraph + GraphQL from a natural-language question."""
+    q = question.lower().strip()
+    uniswap = settings.graph_subgraph_id
+    ens = settings.ens_subgraph_id
+
+    if any(p in q for p in ("who is namegraph", "about namegraph", "agent identity", "your ens")):
+        return RoutedQuery(
+            Intent.ENS_AGENT,
+            _ens_domain_query(settings.agent_ens_name),
+            ens,
+            "ENS",
+            {"name": settings.agent_ens_name},
+        )
+
+    ens_match = re.search(r"\b([a-z0-9-]{1,63}\.eth)\b", q)
+    if ens_match or any(p in q for p in ("ens subgraph", "look up", "resolve ", "who owns", "who is")):
+        name = ens_match.group(1) if ens_match else settings.agent_ens_name
+        return RoutedQuery(
+            Intent.ENS_DOMAIN,
+            _ens_domain_query(name),
+            ens,
+            "ENS",
+            {"name": name},
+        )
+
+    if (
+        "swap" in q
+        and any(p in q for p in ("latest", "recent", "last", "show", "live"))
+    ) or any(p in q for p in ("latest swaps", "recent swaps", "last swap")):
+        return RoutedQuery(Intent.RECENT_SWAPS, UNISWAP_QUERIES[Intent.RECENT_SWAPS], uniswap, "Uniswap V3")
+
+    if any(p in q for p in ("top pool", "top pools", "highest tvl", "largest pool", "by tvl")):
+        return RoutedQuery(Intent.TOP_POOLS, UNISWAP_QUERIES[Intent.TOP_POOLS], uniswap, "Uniswap V3")
+
+    if any(p in q for p in ("volume", "trading volume", "total volume")):
+        return RoutedQuery(Intent.VOLUME, UNISWAP_QUERIES[Intent.VOLUME], uniswap, "Uniswap V3")
+
+    if any(p in q for p in ("transaction", "transactions", "tx count", "txs")):
+        return RoutedQuery(Intent.TX_COUNT, UNISWAP_QUERIES[Intent.TX_COUNT], uniswap, "Uniswap V3")
+
+    if any(p in q for p in ("pool", "pools", "how many")):
+        return RoutedQuery(Intent.POOL_COUNT, UNISWAP_QUERIES[Intent.POOL_COUNT], uniswap, "Uniswap V3")
+
+    return RoutedQuery(Intent.SNAPSHOT, UNISWAP_QUERIES[Intent.SNAPSHOT], uniswap, "Uniswap V3")
+
+
+def _fmt_usd(value: str | float | None) -> str:
     try:
-        num = float(value)
+        num = float(value or 0)
     except (TypeError, ValueError):
         return str(value)
     if num >= 1_000_000_000_000:
@@ -105,11 +177,17 @@ def _fmt_usd(value: str) -> str:
     return f"${num:,.2f}"
 
 
-def _fmt_int(value: str) -> str:
+def _fmt_int(value: str | float | None) -> str:
     try:
-        return f"{int(float(value)):,}"
+        return f"{int(float(value or 0)):,}"
     except (TypeError, ValueError):
         return str(value)
+
+
+def _short(addr: str | None) -> str:
+    if not addr or len(addr) < 10:
+        return addr or "—"
+    return f"{addr[:6]}…{addr[-4:]}"
 
 
 def _factory(data: dict) -> dict | None:
@@ -117,60 +195,97 @@ def _factory(data: dict) -> dict | None:
     return factories[0] if factories else None
 
 
-def format_answer(intent: Intent, data: dict, agent_name: str, stub: bool) -> str:
-    """Turn GraphQL data into a short demo-friendly answer."""
+def format_answer(
+    intent: Intent,
+    data: dict,
+    agent_name: str,
+    *,
+    stub: bool,
+    extracted: dict | None = None,
+) -> str:
+    """Turn GraphQL data into a demo-quality answer."""
     prefix = f"I'm {agent_name}."
     if stub:
         prefix += " (stub mode — add GRAPH_API_KEY for live data.)"
 
+    if intent in (Intent.ENS_DOMAIN, Intent.ENS_AGENT):
+        domains = data.get("domains") or []
+        wanted = (extracted or {}).get("name", "unknown.eth")
+        if not domains:
+            return (
+                f"{prefix} I queried the ENS subgraph for `{wanted}` "
+                "but found no domain record."
+            )
+        d = domains[0]
+        owner = _short((d.get("owner") or {}).get("id"))
+        resolved = _short((d.get("resolvedAddress") or {}).get("id"))
+        subs = d.get("subdomainCount", 0)
+        if intent == Intent.ENS_AGENT:
+            return (
+                f"{prefix} My ENS identity `{d.get('name')}` is live on the ENS subgraph. "
+                f"Owner {owner}, resolves to {resolved}, "
+                f"{subs} subdomains indexed by The Graph."
+            )
+        return (
+            f"{prefix} ENS subgraph says `{d.get('name')}` is owned by {owner}, "
+            f"resolves to {resolved}, with {subs} subdomains."
+        )
+
     if intent == Intent.POOL_COUNT:
         factory = _factory(data)
         if not factory:
-            return f"{prefix} I queried The Graph but couldn't find factory data."
-        count = _fmt_int(factory.get("poolCount", "0"))
+            return f"{prefix} No Uniswap factory data from The Graph."
         return (
-            f"{prefix} The Uniswap V3 factory reports {count} liquidity pools "
-            "on Ethereum mainnet, indexed by The Graph."
+            f"{prefix} Uniswap V3 reports {_fmt_int(factory.get('poolCount'))} "
+            "liquidity pools on Ethereum — indexed by The Graph."
         )
 
     if intent == Intent.TX_COUNT:
         factory = _factory(data)
         if not factory:
-            return f"{prefix} I queried The Graph but couldn't find factory data."
-        count = _fmt_int(factory.get("txCount", "0"))
+            return f"{prefix} No Uniswap factory data from The Graph."
         return (
-            f"{prefix} Uniswap V3 has processed {count} transactions "
-            "on Ethereum mainnet, per The Graph."
+            f"{prefix} Uniswap V3 has processed {_fmt_int(factory.get('txCount'))} "
+            "transactions on Ethereum, per The Graph."
         )
 
     if intent == Intent.VOLUME:
         factory = _factory(data)
         if not factory:
-            return f"{prefix} I queried The Graph but couldn't find factory data."
-        volume = _fmt_usd(factory.get("totalVolumeUSD", "0"))
+            return f"{prefix} No Uniswap factory data from The Graph."
         return (
-            f"{prefix} Uniswap V3 lifetime trading volume is about {volume} "
-            "on Ethereum mainnet, per The Graph."
+            f"{prefix} Uniswap V3 lifetime volume is about "
+            f"{_fmt_usd(factory.get('totalVolumeUSD'))} on Ethereum."
         )
 
     if intent == Intent.TOP_POOLS:
         pools = data.get("pools") or []
         if not pools:
-            return f"{prefix} I queried The Graph but couldn't find pool rankings."
-        lines = [f"{prefix} Top Uniswap V3 pools by TVL (The Graph):"]
+            return f"{prefix} No pool rankings returned."
+        lines = [f"{prefix} Top Uniswap V3 pools by TVL:"]
         for i, pool in enumerate(pools, start=1):
             t0 = (pool.get("token0") or {}).get("symbol", "?")
             t1 = (pool.get("token1") or {}).get("symbol", "?")
-            tvl = _fmt_usd(pool.get("totalValueLockedUSD", "0"))
-            lines.append(f"{i}. {t0}/{t1} — TVL {tvl}")
+            lines.append(f"{i}. {t0}/{t1} — TVL {_fmt_usd(pool.get('totalValueLockedUSD'))}")
+        return "\n".join(lines)
+
+    if intent == Intent.RECENT_SWAPS:
+        swaps = data.get("swaps") or []
+        if not swaps:
+            return f"{prefix} No recent swaps returned."
+        lines = [f"{prefix} Latest Uniswap V3 swaps on The Graph:"]
+        for i, swap in enumerate(swaps, start=1):
+            t0 = (swap.get("token0") or {}).get("symbol", "?")
+            t1 = (swap.get("token1") or {}).get("symbol", "?")
+            lines.append(f"{i}. {t0}/{t1} — {_fmt_usd(swap.get('amountUSD'))}")
         return "\n".join(lines)
 
     factory = _factory(data)
     if not factory:
         return f"{prefix} I queried The Graph but didn't get usable data."
     return (
-        f"{prefix} Uniswap V3 snapshot from The Graph: "
-        f"{_fmt_int(factory.get('poolCount', '0'))} pools, "
-        f"{_fmt_int(factory.get('txCount', '0'))} transactions, "
-        f"{_fmt_usd(factory.get('totalVolumeUSD', '0'))} lifetime volume."
+        f"{prefix} Uniswap V3 snapshot: "
+        f"{_fmt_int(factory.get('poolCount'))} pools · "
+        f"{_fmt_int(factory.get('txCount'))} txs · "
+        f"{_fmt_usd(factory.get('totalVolumeUSD'))} volume."
     )

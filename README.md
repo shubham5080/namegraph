@@ -1,84 +1,62 @@
-# NameGraph 🔎
+# NameGraph
 
-**ENS-named AI agents that pay to query [The Graph](https://thegraph.com) for live onchain answers.**
+**ENS-named agents that pay to query [The Graph](https://thegraph.com) for live onchain answers.**
 
-Built at **ETHOnline 2026** (Classic / From Scratch track).
+Built at **ETHOnline 2026** (Classic / From Scratch).
 
-## One-liner
+## What it is
 
-An agent with an ENS identity uses a Privy wallet session and pays to fetch real onchain data from The Graph — then answers in plain language.
+`namegraph.eth` is an onchain research agent:
 
-## Partners we target
+1. You ask in plain language  
+2. The agent routes to the right Graph subgraph (Uniswap V3 or ENS)  
+3. A credit is charged (Privy wallet next)  
+4. You get an answer **plus a query receipt**
 
-| Partner | How we use it |
-|---------|----------------|
-| **The Graph** | Live Subgraph / Token API / GraphQL queries |
-| **ENS** | Agent name + text records (identity) |
-| **Privy** | Embedded wallet / login |
+This is the agent interface to The Graph — not a trading dashboard.
 
-## Architecture
+## Partners
 
-```
-User → Privy login
-     → Agent identity (ENS)
-     → Pay / credit step
-     → The Graph query
-     → Answer + receipt
-```
-
-```
-frontend/   Next.js + Privy UI
-backend/    FastAPI agent + Graph client
-```
+| Partner | Role |
+|---------|------|
+| **The Graph** | Multi-subgraph live queries + receipts |
+| **ENS** | Agent identity (`namegraph.eth`) |
+| **Privy** | Wallet login / pay-per-query (wiring next) |
 
 ## Quick start
 
-### Backend
-
 ```bash
-cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-uvicorn app.main:app --reload --port 8000
+# both servers
+./scripts/dev.sh
 ```
 
-### Frontend
+Or separately:
 
 ```bash
-cd frontend
-cp .env.example .env.local
-npm install
-npm run dev
+# backend
+cd backend && source .venv/bin/activate
+cp .env.example .env   # add GRAPH_API_KEY
+uvicorn app.main:app --reload --port 8000
+
+# frontend
+cd frontend && npm install && npm run dev
 ```
 
 Open http://localhost:3000
 
-### One command (both servers)
+## Demo path (≤4 min)
 
-```bash
-./scripts/dev.sh
-```
+1. Show `namegraph.eth` identity card  
+2. Ask: Uniswap pool count  
+3. Ask: `Look up vitalik.eth`  
+4. Open the **receipt** (proof · subgraph · intent)  
+5. Show credits / top-up (Privy pay next)
 
-## Demo credits
+## Docs
 
-Each ask costs **1 credit**. New browser sessions start with **10 credits**.
-Use **Top up (+5)** in the UI until Privy payments are wired in.
-
-## Demo script (≤4 min)
-
-1. Show agent ENS name
-2. Privy login
-3. Ask a question
-4. Show payment / credit step
-5. Show Graph-backed answer
-
-## Docs in this repo
-
-- [`PLAN.md`](./PLAN.md) — build plan by date
-- [`AI_USAGE.md`](./AI_USAGE.md) — how AI was used (ETHOnline requirement)
-- [`FEEDBACK.md`](./FEEDBACK.md) — partner DX notes
+- [`PLAN.md`](./PLAN.md) — elevated build plan  
+- [`AI_USAGE.md`](./AI_USAGE.md) — AI disclosure  
+- [`FEEDBACK.md`](./FEEDBACK.md) — partner DX notes  
 
 ## License
 
