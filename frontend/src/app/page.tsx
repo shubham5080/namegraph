@@ -32,6 +32,14 @@ type AskResponse = {
   credits_remaining: number;
 };
 
+type HistoryItem = {
+  id: string;
+  question: string;
+  answer: string;
+  at: string;
+  source: string;
+};
+
 function getSessionId(): string {
   const key = "namegraph_session";
   let id = localStorage.getItem(key);
@@ -52,6 +60,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AskResponse | null>(null);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
   const [showRaw, setShowRaw] = useState(false);
 
   const apiHeaders = useCallback(
@@ -89,6 +98,14 @@ export default function HomePage() {
 
   useEffect(() => {
     setSessionId(getSessionId());
+    const saved = localStorage.getItem("namegraph_history");
+    if (saved) {
+      try {
+        setHistory(JSON.parse(saved) as HistoryItem[]);
+      } catch {
+        // ignore corrupt history
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -130,6 +147,18 @@ export default function HomePage() {
       const data = (await res.json()) as AskResponse;
       setResult(data);
       setCredits(data.credits_remaining);
+      const item: HistoryItem = {
+        id: crypto.randomUUID(),
+        question: data.question,
+        answer: data.answer,
+        at: new Date().toISOString(),
+        source: String(data.graph.source ?? "unknown"),
+      };
+      setHistory((prev) => {
+        const next = [item, ...prev].slice(0, 8);
+        localStorage.setItem("namegraph_history", JSON.stringify(next));
+        return next;
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Request failed");
     } finally {
@@ -254,6 +283,38 @@ export default function HomePage() {
               {JSON.stringify(result.graph, null, 2)}
             </pre>
           )}
+        </div>
+      )}
+
+      {history.length > 0 && (
+        <div className="card">
+          <p className="meta">Recent queries (this browser)</p>
+          <ul className="history">
+            {history.map((item) => (
+              <li key={item.id}>
+                <button
+                  type="button"
+                  className="history-item"
+                  onClick={() => {
+                    setQuestion(item.question);
+                    setResult({
+                      agent: AGENT_ENS,
+                      question: item.question,
+                      answer: item.answer,
+                      graph: { source: item.source },
+                      credits_charged: 1,
+                      credits_remaining: credits ?? 0,
+                    });
+                  }}
+                >
+                  <span className="history-q">{item.question}</span>
+                  <span className="history-meta">
+                    {new Date(item.at).toLocaleTimeString()} · {item.source}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </main>

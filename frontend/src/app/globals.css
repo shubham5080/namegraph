@@ -100,6 +100,38 @@ button.small {
   font-size: 0.75rem;
   white-space: pre-wrap;
 }
+.history {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+.history-item {
+  width: 100%;
+  margin-top: 0;
+  text-align: left;
+  border-radius: 10px;
+  padding: 0.65rem 0.75rem;
+  background: #0d1426;
+  color: var(--text);
+  border: 1px solid var(--border);
+  font-weight: 500;
+}
+.history-item:hover {
+  border-color: var(--accent);
+}
+.history-q {
+  display: block;
+  font-size: 0.85rem;
+  margin-bottom: 0.2rem;
+}
+.history-meta {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-weight: 400;
+}
 h1 { font-size: 2rem; margin: 0 0 0.35rem; letter-spacing: -0.02em; }
 .tag { color: var(--muted); margin-bottom: 1.5rem; }
 .card {
