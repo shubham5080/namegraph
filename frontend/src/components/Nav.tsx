@@ -1,11 +1,12 @@
 import Link from "next/link";
+import Logo from "@/components/Logo";
 
 export default function Nav() {
   return (
     <header className="site-nav">
       <div className="site-nav-inner">
         <Link href="/" className="brand">
-          <img className="brand-mark" src="/logo.svg" alt="NameGraph" />
+          <Logo size={32} className="brand-mark" />
           <span className="brand-name">NameGraph</span>
         </Link>
 

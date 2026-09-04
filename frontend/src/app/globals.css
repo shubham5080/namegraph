@@ -52,13 +52,24 @@ a { color: inherit; }
   padding: 0.2rem 0.15rem 0.85rem;
   border-bottom: 1px solid var(--line);
 }
-.brand-mark {
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
+.brand-mark,
+.logo-mark {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
   display: block;
   object-fit: cover;
-  box-shadow: 0 8px 24px rgba(111, 76, 255, 0.35);
+  box-shadow: 0 0 0 1px rgba(111, 76, 255, 0.35), 0 8px 24px rgba(111, 76, 255, 0.35);
+}
+.agent-avatar,
+.agent-avatar.logo-mark {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: block;
+  object-fit: cover;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 1px rgba(111, 76, 255, 0.4), 0 6px 18px rgba(111, 76, 255, 0.25);
 }
 .brand strong {
   display: block;
@@ -93,15 +104,6 @@ a { color: inherit; }
   display: flex;
   align-items: center;
   gap: 0.7rem;
-}
-.agent-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  display: block;
-  object-fit: cover;
-  flex-shrink: 0;
-  box-shadow: 0 0 0 1px rgba(111, 76, 255, 0.35);
 }
 .status-dot {
   display: inline-flex;

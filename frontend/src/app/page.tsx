@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import Logo from "@/components/Logo";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const AGENT_ENS = process.env.NEXT_PUBLIC_AGENT_ENS || "namegraph.eth";
@@ -185,7 +186,7 @@ export default function HomePage() {
     <div className="app-shell">
       <aside className="sidebar">
         <a className="brand" href="/">
-          <img className="brand-mark" src="/logo.svg" alt="NameGraph" />
+          <Logo size={36} className="brand-mark" priority />
           <span>
             <strong>NameGraph</strong>
             <span>Onchain research agent</span>
@@ -194,7 +195,7 @@ export default function HomePage() {
 
         <div className="side-card">
           <div className="agent-row">
-            <img className="agent-avatar" src="/logo.png" alt="" />
+            <Logo size={42} className="agent-avatar" alt="" />
             <div>
               <h2>{identity?.display_name || AGENT_ENS}</h2>
               <p>
@@ -293,11 +294,7 @@ export default function HomePage() {
             {messages.map((m) => (
               <article key={m.id} className={`msg ${m.role}`}>
                 <div className="msg-av" aria-hidden>
-                  {m.role === "user" ? (
-                    "YOU"
-                  ) : (
-                    <img src="/logo.svg" alt="" />
-                  )}
+                  {m.role === "user" ? "YOU" : <Logo size={30} alt="" />}
                 </div>
                 <div className="bubble">
                   <p className="bubble-meta">
@@ -349,7 +346,7 @@ export default function HomePage() {
             {loading && (
               <article className="msg agent">
                 <div className="msg-av" aria-hidden>
-                  <img src="/logo.svg" alt="" />
+                  <Logo size={30} alt="" />
                 </div>
                 <div className="bubble">
                   <p className="bubble-meta">{AGENT_ENS}</p>

@@ -13,7 +13,11 @@ export const metadata: Metadata = {
   title: "NameGraph",
   description: "ENS-named agents that pay to query The Graph",
   icons: {
-    icon: [{ url: "/logo.svg", type: "image/svg+xml" }, { url: "/logo-192.png" }],
+    icon: [
+      { url: "/logo.svg", type: "image/svg+xml" },
+      { url: "/favicon-64.png", sizes: "64x64", type: "image/png" },
+      { url: "/logo-192.png", sizes: "192x192", type: "image/png" },
+    ],
     apple: [{ url: "/apple-touch-icon.png" }],
   },
 };

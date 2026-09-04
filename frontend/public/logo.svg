@@ -1,29 +1,33 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="NameGraph">
   <defs>
-    <linearGradient id="ring" x1="16" y1="12" x2="112" y2="116" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#8B6FFF"/>
-      <stop offset="0.55" stop-color="#6F4CFF"/>
-      <stop offset="1" stop-color="#4C66FF"/>
-    </linearGradient>
-    <radialGradient id="bg" cx="50%" cy="42%" r="58%">
-      <stop offset="0%" stop-color="#1B1540"/>
+    <radialGradient id="bg" cx="50%" cy="40%" r="65%">
+      <stop offset="0%" stop-color="#241B55"/>
       <stop offset="100%" stop-color="#0C0A1D"/>
     </radialGradient>
+    <linearGradient id="ring" x1="10" y1="8" x2="118" y2="120" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#9B87FF"/>
+      <stop offset="0.45" stop-color="#6F4CFF"/>
+      <stop offset="1" stop-color="#4C66FF"/>
+    </linearGradient>
   </defs>
-  <circle cx="64" cy="64" r="62" fill="url(#bg)"/>
-  <circle cx="64" cy="64" r="58" fill="none" stroke="url(#ring)" stroke-width="3.5"/>
-  <!-- constellation -->
-  <g stroke="#6F4CFF" stroke-opacity="0.55" stroke-width="1.2">
-    <path d="M34 40 L64 28 L94 42 L86 78 L52 92 L30 68 Z"/>
-    <path d="M64 28 L86 78 M94 42 L52 92 M34 40 L86 78"/>
+  <circle cx="64" cy="64" r="64" fill="url(#bg)"/>
+  <circle cx="64" cy="64" r="60" fill="none" stroke="url(#ring)" stroke-width="4"/>
+  <g stroke="#7B6CFF" stroke-opacity="0.65" stroke-width="1.4" fill="none">
+    <path d="M64 22 L98 42 L90 84 L52 98 L28 70 L36 36 Z"/>
+    <path d="M64 22 L90 84 M98 42 L52 98 M36 36 L90 84 M28 70 L98 42"/>
   </g>
   <g fill="#66D8FF">
-    <circle cx="64" cy="28" r="3.2"/>
-    <circle cx="94" cy="42" r="3.2"/>
-    <circle cx="86" cy="78" r="3.2"/>
-    <circle cx="52" cy="92" r="3.2"/>
-    <circle cx="30" cy="68" r="3.2"/>
-    <circle cx="34" cy="40" r="3.2"/>
+    <circle cx="64" cy="22" r="3.8"/>
+    <circle cx="98" cy="42" r="3.8"/>
+    <circle cx="90" cy="84" r="3.8"/>
+    <circle cx="52" cy="98" r="3.8"/>
+    <circle cx="28" cy="70" r="3.8"/>
+    <circle cx="36" cy="36" r="3.8"/>
   </g>
-  <text x="64" y="74" text-anchor="middle" font-family="Arial Black, Helvetica, sans-serif" font-size="42" font-weight="700" fill="#F8F6FF" letter-spacing="-2">NG</text>
+  <g fill="#8B6FFF" opacity="0.9">
+    <circle cx="74" cy="48" r="2"/>
+    <circle cx="48" cy="58" r="2"/>
+    <circle cx="70" cy="72" r="2"/>
+  </g>
+  <text x="64" y="76" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="44" font-weight="700" fill="#FFFFFF" letter-spacing="-1.5">NG</text>
 </svg>
