@@ -2,6 +2,10 @@
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import Logo from "@/components/Logo";
+import WalletButton, {
+  hasPrivyConfig,
+  useConnectedWalletAddress,
+} from "@/components/WalletButton";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const AGENT_ENS = process.env.NEXT_PUBLIC_AGENT_ENS || "namegraph.eth";
@@ -53,7 +57,7 @@ function getSessionId(): string {
   return id;
 }
 
-export default function HomePage() {
+function HomeWorkspace({ wallet }: { wallet: string | null }) {
   const [sessionId, setSessionId] = useState("local");
   const [online, setOnline] = useState(false);
   const [identity, setIdentity] = useState<AgentIdentity | null>(null);
@@ -148,7 +152,10 @@ export default function HomePage() {
       const res = await fetch(`${API_URL}/ask`, {
         method: "POST",
         headers: apiHeaders(),
-        body: JSON.stringify({ question: trimmed }),
+        body: JSON.stringify({
+          question: trimmed,
+          wallet: wallet || undefined,
+        }),
       });
       if (res.status === 402) throw new Error("Insufficient credits.");
       if (!res.ok) throw new Error(`Request failed (${res.status})`);
@@ -182,20 +189,26 @@ export default function HomePage() {
   const canSend =
     !loading && online && question.trim().length > 0 && credits !== 0;
 
+  const payerHint = wallet
+    ? `Paying as ${wallet.slice(0, 6)}…${wallet.slice(-4)} · 1 credit / Graph query`
+    : hasPrivyConfig()
+      ? "Connect wallet so receipts show your address · 1 credit / Graph query"
+      : "Set NEXT_PUBLIC_PRIVY_APP_ID to enable Privy · 1 credit / Graph query";
+
   return (
-    <div className="app-shell">
+    <div className="shell">
       <aside className="sidebar">
-        <a className="brand" href="/">
-          <Logo size={36} className="brand-mark" priority />
-          <span>
+        <div className="brand">
+          <Logo size={36} />
+          <div>
             <strong>NameGraph</strong>
             <span>Onchain research agent</span>
-          </span>
-        </a>
+          </div>
+        </div>
 
-        <div className="side-card">
+        <div className="side-card agent-card">
           <div className="agent-row">
-            <Logo size={42} className="agent-avatar" alt="" />
+            <Logo size={40} className="agent-avatar" />
             <div>
               <h2>{identity?.display_name || AGENT_ENS}</h2>
               <p>
@@ -235,11 +248,9 @@ export default function HomePage() {
         </nav>
 
         <div className="sidebar-foot">
-          <button type="button" className="connect-btn" disabled>
-            Connect wallet
-          </button>
+          <WalletButton />
           <p style={{ margin: 0, color: "var(--muted)", fontSize: "0.72rem" }}>
-            Privy login next · 1 credit / Graph query
+            {payerHint}
           </p>
         </div>
       </aside>
@@ -320,6 +331,10 @@ export default function HomePage() {
                       {openReceipt === m.receipt.id && (
                         <div className="receipt">
                           <div>
+                            <span>Paid by</span>
+                            <strong>{m.receipt.paid_by}</strong>
+                          </div>
+                          <div>
                             <span>Proof</span>
                             <strong>{m.receipt.proof}</strong>
                           </div>
@@ -384,4 +399,16 @@ export default function HomePage() {
       </div>
     </div>
   );
+}
+
+function HomeWithPrivy() {
+  const wallet = useConnectedWalletAddress();
+  return <HomeWorkspace wallet={wallet} />;
+}
+
+export default function HomePage() {
+  if (hasPrivyConfig()) {
+    return <HomeWithPrivy />;
+  }
+  return <HomeWorkspace wallet={null} />;
 }

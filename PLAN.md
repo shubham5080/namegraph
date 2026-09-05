@@ -1,7 +1,28 @@
 # NameGraph — ETHOnline 2026 plan
 
 Track: **Classic / From Scratch**  
-Submit: **Sun Sep 13, 2026 · 9:30 PM IST** (~8 days left)
+Submit: **Sun Sep 13, 2026 · 9:30 PM IST**  
+Repo: https://github.com/shubham5080/namegraph (`main`)
+
+## Checkpoint — Sat Sep 5 morning (where we left off)
+
+**Done**
+- Live multi-intent agent (Uniswap V3 + ENS), chat UI, receipts, demo credits, logo, product shell
+- Help/greeting intent (no Graph dump / 0 credits)
+- ETHGlobal project created: NameGraph · Data/Analytics · emoji 🕸️ · monorepo `shubham5080/namegraph`
+- Prizes (max 3): **The Graph**, **ENS**, **Privy** · track Building from Scratch · Top 10 + partners
+- Submission copy filled (description / how it’s made / AI_USAGE); tech stack mostly filled
+
+**Paused / do later**
+- Images (logo, cover, ≥3 screenshots) · Video (2–4 min, 720p, audio no music) · Final submit (not unlocked yet)
+
+**Next build (in order)**
+1. ~~**Privy Connect**~~ — wired; set `NEXT_PUBLIC_PRIVY_APP_ID` for live login
+2. **Public deploy** (not localhost)
+3. Screenshots + ≤4 min video
+4. Fill `FEEDBACK.md` · freeze features Sat Sep 12 · submit by deadline
+
+**Do not:** UI restyle churn, 1inch/trading dashboards, scope creep
 
 ## What we are building (elevated)
 

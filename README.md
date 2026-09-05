@@ -21,7 +21,7 @@ This is the agent interface to The Graph — not a trading dashboard.
 |---------|------|
 | **The Graph** | Multi-subgraph live queries + receipts |
 | **ENS** | Agent identity (`namegraph.eth`) |
-| **Privy** | Wallet login / pay-per-query (wiring next) |
+| **Privy** | Wallet login → `paid_by` on query receipts |
 
 ## Quick start
 
@@ -39,7 +39,10 @@ cp .env.example .env   # add GRAPH_API_KEY
 uvicorn app.main:app --reload --port 8000
 
 # frontend
-cd frontend && npm install && npm run dev
+cd frontend && npm install
+cp .env.example .env.local
+# set NEXT_PUBLIC_PRIVY_APP_ID from https://dashboard.privy.io
+npm run dev
 ```
 
 Open http://localhost:3000
@@ -47,10 +50,11 @@ Open http://localhost:3000
 ## Demo path (≤4 min)
 
 1. Show `namegraph.eth` identity card  
-2. Ask: Uniswap pool count  
-3. Ask: `Look up vitalik.eth`  
-4. Open the **receipt** (proof · subgraph · intent)  
-5. Show credits / top-up (Privy pay next)
+2. **Connect wallet** (Privy)  
+3. Ask: Uniswap pool count  
+4. Ask: `Look up vitalik.eth`  
+5. Open the **receipt** — `paid_by` is your wallet, plus subgraph + proof  
+6. Credits / top-up
 
 ## Docs
 
